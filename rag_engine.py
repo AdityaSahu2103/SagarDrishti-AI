@@ -17,24 +17,24 @@ try:
     # First try: Modern langchain-openai
     from langchain_openai import ChatOpenAI
     from langchain_core.messages import HumanMessage, SystemMessage
-    print("✅ Successfully imported ChatOpenAI and message classes")
+    print("Successfully imported ChatOpenAI and message classes")
 except ImportError:
     try:
         # Second try: Legacy langchain structure
         from langchain.chat_models import ChatOpenAI
         from langchain.schema import HumanMessage, SystemMessage
-        print("✅ Imported ChatOpenAI from legacy langchain structure")
+        print("Successfully imported ChatOpenAI from legacy langchain structure")
     except ImportError:
         try:
             # Third try: Community version
             from langchain_community.chat_models import ChatOpenAI
             from langchain_core.messages import HumanMessage, SystemMessage
-            print("✅ Imported ChatOpenAI from langchain_community")
+            print("Successfully imported ChatOpenAI from langchain_community")
         except ImportError:
             try:
                 # Fourth try: Direct OpenAI
                 import openai
-                print("⚠️ Using direct OpenAI client as fallback")
+                print("WARNING: Using direct OpenAI client as fallback")
                 
                 class ChatOpenAI:
                     def __init__(self, model="gpt-3.5-turbo-instruct", temperature=0.2, max_tokens=512, api_key=None):
@@ -73,8 +73,8 @@ except ImportError:
                         self.content = content
                         
             except ImportError:
-                print("⚠️ Could not import any LLM libraries")
-                print("⚠️ LLM (Language Model) didnt initialize. The chat interface will use a simplified, rule-based response mode.")
+                print("WARNING: Could not import any LLM libraries")
+                print("WARNING: LLM (Language Model) didnt initialize. The chat interface will use a simplified, rule-based response mode.")
                 
                 # Create simple fallback message classes
                 class HumanMessage:
@@ -98,7 +98,7 @@ try:
     from utils import QueryAnalyzer
 except ImportError:
     QueryAnalyzer = None
-    print("⚠️ QueryAnalyzer not available")
+    print("WARNING: QueryAnalyzer not available")
 
 logger = setup_logging(__name__)
 
@@ -342,13 +342,13 @@ class OceanographyRAG:
         """Initialize the OpenAI Chat LLM with comprehensive fallback handling."""
         if not self.openai_available:
             logger.warning("OpenAI ChatGPT not available - using rule-based responses")
-            print("⚠️ LLM (Language Model) didnt initialize. The chat interface will use a simplified, rule-based response mode.")
+            print("WARNING: LLM (Language Model) didnt initialize. The chat interface will use a simplified, rule-based response mode.")
             return
             
         if self.llm is None:
             if not self.config.OPENAI_API_KEY:
                 logger.error("OpenAI API key not found in configuration!")
-                print("⚠️ LLM (Language Model) didnt initialize. The chat interface will use a simplified, rule-based response mode.")
+                print("WARNING: LLM (Language Model) didnt initialize. The chat interface will use a simplified, rule-based response mode.")
                 self.openai_available = False
                 return
 
@@ -383,13 +383,13 @@ class OceanographyRAG:
                 test_message = [HumanMessage(content="Hello")]
                 test_response = self.llm.invoke(test_message)
                 
-                logger.info("✅ OpenAI LLM initialized and tested successfully.")
-                print("✅ LLM (Language Model) initialized successfully!")
+                logger.info("SUCCESS: OpenAI LLM initialized and tested successfully.")
+                print("SUCCESS: LLM (Language Model) initialized successfully!")
                 
             except Exception as e:
-                logger.error(f"❌ Failed to initialize OpenAI LLM: {e}")
-                print(f"⚠️ LLM initialization failed: {e}")
-                print("⚠️ LLM (Language Model) didnt initialize. The chat interface will use a simplified, rule-based response mode.")
+                logger.error(f"ERROR: Failed to initialize OpenAI LLM: {e}")
+                print(f"WARNING: LLM initialization failed: {e}")
+                print("WARNING: LLM (Language Model) didnt initialize. The chat interface will use a simplified, rule-based response mode.")
                 self.llm = None
                 self.openai_available = False
 
@@ -536,9 +536,9 @@ class OceanographyRAG:
                 oceans.append('Indian Ocean')
 
         parts = [
-            "Summary: Here’s what’s available in the local ARGO dataset. 🌊",
+            "Summary: Here’s what’s available in the local ARGO dataset. [OCEAN]",
             f"- 🔢 Total profiles: {total}",
-            f"- 🗺️ Regions: {', '.join(regions) if regions else 'Unknown'}",
+            f"- [MAP] Regions: {', '.join(regions) if regions else 'Unknown'}",
             *( [f"- 🌐 Oceans: {', '.join(sorted(set(oceans)))}"] if oceans else [] ),
             *( [f"- 📍 Coverage (bbox): {bbox}"] if bbox else [] ),
             *( [f"- 🕒 Time span: {time_span}"] if time_span else [] ),
@@ -587,7 +587,7 @@ class OceanographyRAG:
             "6. Transparency: If confidence is low, say so. If data is missing, suggest filters (region, time, parameter).\n\n"
             "LENGTH & STYLE:\n"
             "- Aim for around 7–8 sentences total across sections.\n"
-            "- Include 2–4 relevant emojis to improve readability (e.g., 🌊, 📊, 🗺️, 🧭).\n\n"
+            "- Include 2–4 relevant emojis to improve readability (e.g., [OCEAN], [CHART], [MAP], [COMPASS]).\n\n"
             "RESPONSE STRUCTURE:\n"
             "- Summary: One clear line answering the query.\n"
             "- Details: 2–4 short bullet points citing relevant numbers, regions, depths, times.\n"
@@ -661,8 +661,8 @@ class OceanographyRAG:
         elif any(q in question_lower for q in ['what can you do', 'help', 'how does this work']):
             return (
                 "I can help you explore ARGO oceanographic float data! Here's what I can do:\n\n"
-                "🌊 Search for ocean temperature and salinity data by location\n"
-                "📊 Find profiles from specific regions (Atlantic, Pacific, etc.)\n"
+                "[OCEAN] Search for ocean temperature and salinity data by location\n"
+                "[CHART] Find profiles from specific regions (Atlantic, Pacific, etc.)\n"
                 "🗓️ Look up historical oceanographic measurements\n"
                 "📍 Get data from specific coordinates\n\n"
                 "Try asking: 'Show me recent temperature data from the Mediterranean' or 'What's the salinity profile near Australia?'"
@@ -738,7 +738,7 @@ class OceanographyRAG:
                 oceans_available = self._available_oceans()
                 if requested_ocean not in oceans_available:
                     parts: list[str] = []
-                    parts.append(f"Summary: No local ARGO data was found for queries in the {requested_ocean}. ❌🌊")
+                    parts.append(f"Summary: No local ARGO data was found for queries in the {requested_ocean}. ERROR:[OCEAN]")
                     if oceans_available:
                         parts.append(f"- Available locally: {', '.join(oceans_available)}")
                     else:
@@ -914,12 +914,12 @@ class OceanographyRAG:
 
             # Build a structured, emoji-friendly message
             lines = []
-            lines.append("Summary: No exact matches for your query, but here’s what’s available in the local RAG dataset. 🌊")
+            lines.append("Summary: No exact matches for your query, but here’s what’s available in the local RAG dataset. [OCEAN]")
             # Convert catalog entries to concise bullet points
             for item in catalog:
                 lines.append(f"- 🔎 {item}")
-            lines.append("📊 Visualization Suggestion: View a map of float locations within the bounding box, or plot depth–temperature/salinity profiles to explore coverage.")
-            lines.append("🧭 Next Step: Refine by region, month/year, and parameter (temperature/salinity), or increase Top K to broaden search.")
+            lines.append("[CHART] Visualization Suggestion: View a map of float locations within the bounding box, or plot depth–temperature/salinity profiles to explore coverage.")
+            lines.append("[COMPASS] Next Step: Refine by region, month/year, and parameter (temperature/salinity), or increase Top K to broaden search.")
             return {
                 'answer': "\n".join(lines),
                 'retrieved_profiles': [],
@@ -997,7 +997,7 @@ class OceanographyRAG:
             "6. Transparency: If confidence is low, say so; if data is missing, suggest filters (region, time, parameter).\n\n"
             "LENGTH & STYLE:\n"
             "- Aim for around 7–8 sentences total across sections.\n"
-            "- Include 2–4 relevant emojis to improve readability (e.g., 🌊, 📊, 🗺️, 🧭).\n\n"
+            "- Include 2–4 relevant emojis to improve readability (e.g., [OCEAN], [CHART], [MAP], [COMPASS]).\n\n"
             "RESPONSE STRUCTURE:\n"
             "- Summary: One clear line answering the query.\n"
             "- Details: 2–4 short bullet points citing numbers, regions, depths, times from the provided context.\n"
@@ -1064,10 +1064,10 @@ class OceanographyRAG:
             return (
                 "Summary: No local ARGO profiles matched your query. 🙏\n"
                 "- 💡 Details: Try adding a region (e.g., 'Arabian Sea' or 'Bay of Bengal'), a time window (e.g., 'March 2023'), and the parameter (salinity/temperature).\n"
-                "- 🌊 Tip: Mention depth if relevant (e.g., surface vs 0–2000 m) to improve results.\n"
+                "- [OCEAN] Tip: Mention depth if relevant (e.g., surface vs 0–2000 m) to improve results.\n"
                 "- 🧠 Note: I can still answer with general knowledge if you want; just say the word.\n"
-                "📊 Visualization Suggestion: Ask for a map of float locations or a depth–temperature profile.\n"
-                "🧭 Next Step: Increase Top K in the sidebar or refine filters (region, month/year, parameter).\n"
+                "[CHART] Visualization Suggestion: Ask for a map of float locations or a depth–temperature profile.\n"
+                "[COMPASS] Next Step: Increase Top K in the sidebar or refine filters (region, month/year, parameter).\n"
                 "(This message is not based on local ARGO data.)"
             )
         
@@ -1117,7 +1117,7 @@ class OceanographyRAG:
         
         # Build response (structured)
         lines: list[str] = []
-        lines.append(f"Summary: Found {num_profiles} profile(s) relevant to your query. 🌊")
+        lines.append(f"Summary: Found {num_profiles} profile(s) relevant to your query. [OCEAN]")
         lines.append(f"- 🔎 Details: Most relevant profile — {top_summary}")
         if temperatures:
             temp_min, temp_max = min(temperatures), max(temperatures)
@@ -1129,15 +1129,15 @@ class OceanographyRAG:
             lat, lon = locations[0]
             lines.append(f"- 📍 Primary location sample: {lat:.2f}°, {lon:.2f}°")
         if primary_region:
-            lines.append(f"- 🗺️ Region: {primary_region}")
+            lines.append(f"- [MAP] Region: {primary_region}")
         if times:
             try:
                 tmin, tmax = min(times), max(times)
                 lines.append(f"- 🕒 Time span in results: {self._format_month_year(tmin)} to {self._format_month_year(tmax)}")
             except Exception:
                 pass
-        lines.append("📊 Visualization Suggestion: Depth vs Temperature/Salinity profile plot or T–S diagram.")
-        lines.append("🧭 Next Step: Refine by region, month/year, and parameter; or ask to map float locations.")
+        lines.append("[CHART] Visualization Suggestion: Depth vs Temperature/Salinity profile plot or T–S diagram.")
+        lines.append("[COMPASS] Next Step: Refine by region, month/year, and parameter; or ask to map float locations.")
         return "\n".join(lines)
 
     def _generate_fallback_response(self, question: str, retrieved_profiles: List[Dict]) -> str:

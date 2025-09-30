@@ -5,7 +5,6 @@ Debug script to check langchain installations and imports
 def check_imports():
     print("🔍 Checking langchain installations...")
     
-    # Check installed packages
     try:
         import pkg_resources
         installed_packages = [d.project_name for d in pkg_resources.working_set]
@@ -14,7 +13,6 @@ def check_imports():
     except:
         print("❌ Could not check installed packages")
     
-    # Test different import paths
     import_tests = [
         ("langchain_openai", "from langchain_openai import ChatOpenAI"),
         ("langchain.chat_models", "from langchain.chat_models import ChatOpenAI"),
@@ -42,7 +40,6 @@ def check_imports():
     for failure in failed_imports:
         print(f"  {failure}")
     
-    # Check if ChatOpenAI is available
     ChatOpenAI = None
     try:
         from langchain_openai import ChatOpenAI

@@ -1047,6 +1047,9 @@ def display_geographic_map(system_components):
             })
             
     df = pd.DataFrame(map_df_data)
+    # Ensure Max Depth is numeric and use absolute values (depths can be negative in source data)
+    if not df.empty:
+        df['Max Depth'] = pd.to_numeric(df['Max Depth'], errors='coerce').fillna(0.0).abs()
     
     with st.expander("View Raw Map Data"):
         st.dataframe(df, use_container_width=True)

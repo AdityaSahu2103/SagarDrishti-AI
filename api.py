@@ -22,40 +22,33 @@ from rag_engine import OceanographyRAG, QueryAnalyzer
 from utils import setup_logging
 from typing import Any
 try:
-    # Optional import; only used when POSTGRES is enabled or endpoint is called
     from db import save_profiles_to_postgres
 except Exception:
-    save_profiles_to_postgres = None  # type: ignore
+    save_profiles_to_postgres = None  
 
-# Initialize logging
 logger = setup_logging(__name__)
 
-# Initialize configuration
 config = Config()
 config.validate_config()
 
-# Initialize FastAPI app
 app = FastAPI(
     title=config.API_TITLE,
     version=config.API_VERSION,
     description="RAG-powered assistant for exploring ARGO oceanographic float data"
 )
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify actual origins
+    allow_origins=["*"],  
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
 )
 
-# Global components (initialized on startup)
 ingestor: Optional[ARGODataIngestor] = None
 embedding_index: Optional[ProfileEmbeddingIndex] = None
 rag_system: Optional[OceanographyRAG] = None
 
-# Pydantic models for API requests/responses
 class QueryRequest(BaseModel):
     question: str = Field(..., description="Natural language question about oceanographic data")
     top_k: Optional[int] = Field(3, description="Number of similar profiles to retrieve", ge=1, le=10)
@@ -87,7 +80,7 @@ class SystemStatus(BaseModel):
     embedding_model: str
     vector_backend: str
 
-# Startup event
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize system components on startup."""
@@ -96,21 +89,17 @@ async def startup_event():
     logger.info("🚀 Starting FloatChat API...")
     
     try:
-        # Initialize data ingestor
         ingestor = ARGODataIngestor(config)
         logger.info("✅ Data ingestor initialized")
         
-        # Initialize embedding index
         embedding_index = ProfileEmbeddingIndex(config)
         logger.info("✅ Embedding index initialized")
         
-        # Load existing data if available
         profiles = ingestor.process_all_files()
         if profiles:
             logger.info(f"📊 Loading {len(profiles)} existing profiles...")
             embedding_index.create_embeddings(profiles)
             
-            # Initialize RAG system
             rag_system = OceanographyRAG(embedding_index, config)
             logger.info("✅ RAG system initialized")
         else:
@@ -118,9 +107,7 @@ async def startup_event():
             
     except Exception as e:
         logger.error(f"❌ Startup failed: {e}")
-        # Continue startup but mark components as failed
 
-# Root endpoint
 @app.get("/", response_class=HTMLResponse)
 async def root():
     """API root with basic information and links."""
@@ -201,14 +188,12 @@ async def chat_endpoint(request: QueryRequest):
     try:
         logger.info(f"Processing query: {request.question}")
         
-        # Process query through RAG system
         response = rag_system.query(
             request.question,
             top_k=request.top_k,
             include_metadata=request.include_metadata
         )
         
-        # Generate suggestions
         suggestions = rag_system.suggest_related_queries(request.question)
         response['suggestions'] = suggestions
         
@@ -218,7 +203,7 @@ async def chat_endpoint(request: QueryRequest):
         logger.error(f"Query processing failed: {e}")
         raise HTTPException(status_code=500, detail=f"Query processing failed: {str(e)}")
 
-# Profile plotting endpoint
+
 @app.post("/plot")
 async def plot_profile(request: PlotRequest):
     """Generate oceanographic profile plots based on query."""
@@ -229,24 +214,20 @@ async def plot_profile(request: PlotRequest):
         )
     
     try:
-        # Find relevant profile
+       
         search_results = embedding_index.search_similar_profiles(request.question, top_k=1)
         
         if not search_results:
             raise HTTPException(status_code=404, detail="No matching profiles found")
         
-        # Get profile metadata
         profile_metadata = search_results[0]['metadata']
         file_source = profile_metadata['file_source']
-        
-        # Load the actual profile data
         file_path = os.path.join(config.INDIAN_OCEAN_PATH, file_source)
         df = ingestor.parse_netcdf_profile(file_path)
         
         if df is None or df.empty:
             raise HTTPException(status_code=404, detail="Profile data not available")
         
-        # Create plot based on request type
         if request.plot_type == "temperature":
             fig = px.line(
                 df, x="temperature", y="pressure",
@@ -260,10 +241,8 @@ async def plot_profile(request: PlotRequest):
                 labels={"salinity": "Salinity (PSU)", "pressure": "Pressure (dbar)"}
             )
         elif request.plot_type == "both":
-            # Create subplot with both temperature and salinity
             fig = go.Figure()
             
-            # Add temperature trace
             fig.add_trace(go.Scatter(
                 x=df['temperature'], y=df['pressure'],
                 mode='lines+markers',
@@ -271,7 +250,6 @@ async def plot_profile(request: PlotRequest):
                 line=dict(color='red')
             ))
             
-            # Add salinity trace on secondary x-axis
             fig.add_trace(go.Scatter(
                 x=df['salinity'], y=df['pressure'],
                 mode='lines+markers',
@@ -280,7 +258,6 @@ async def plot_profile(request: PlotRequest):
                 xaxis='x2'
             ))
             
-            # Update layout for dual x-axis
             fig.update_layout(
                 title=f"Temperature & Salinity Profile - {profile_metadata.get('file_source', 'Unknown')}",
                 xaxis=dict(title="Temperature (°C)", side="bottom"),
@@ -290,14 +267,11 @@ async def plot_profile(request: PlotRequest):
         else:
             raise HTTPException(status_code=400, detail="Invalid plot_type. Use 'temperature', 'salinity', or 'both'")
         
-        # Reverse y-axis (depth increases downward)
         if request.plot_type != "both":
             fig.update_yaxes(autorange="reversed")
         
-        # Convert to HTML
         plot_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
         
-        # Also provide JSON for programmatic use
         plot_json = json.dumps(fig, cls=PlotlyJSONEncoder)
         
         return {
@@ -314,7 +288,6 @@ async def plot_profile(request: PlotRequest):
         logger.error(f"Plot generation failed: {e}")
         raise HTTPException(status_code=500, detail=f"Plot generation failed: {str(e)}")
 
-# Data summary endpoint
 @app.get("/data/summary", response_model=DataSummary)
 async def get_data_summary():
     """Get summary statistics of the loaded oceanographic data."""
@@ -331,7 +304,6 @@ async def get_data_summary():
             available_parameters=[]
         )
     
-    # Extract geographic and temporal info
     metadata_list = embedding_index.profile_metadata
     latitudes = [m['latitude'] for m in metadata_list if m['latitude']]
     longitudes = [m['longitude'] for m in metadata_list if m['longitude']]
@@ -357,7 +329,6 @@ async def get_data_summary():
         available_parameters=["temperature", "salinity", "pressure", "latitude", "longitude", "time"]
     )
 
-# Data management endpoints
 @app.post("/data/refresh")
 async def refresh_data(background_tasks: BackgroundTasks):
     """Refresh data by downloading new files and rebuilding index."""
@@ -368,15 +339,12 @@ async def refresh_data(background_tasks: BackgroundTasks):
         try:
             logger.info("Starting data refresh...")
             
-            # Download new files
             downloaded = ingestor.download_netcdf_files(max_files=10)
             logger.info(f"Downloaded {len(downloaded)} files")
             
-            # Reprocess all files
             profiles = ingestor.process_all_files()
             
             if profiles:
-                # Rebuild embeddings
                 embedding_index.create_embeddings(profiles, force_rebuild=True)
                 logger.info(f"Rebuilt index with {len(profiles)} profiles")
             
@@ -387,7 +355,6 @@ async def refresh_data(background_tasks: BackgroundTasks):
     
     return {"message": "Data refresh started in background", "status": "processing"}
 
-# Save parsed profiles and measurements to PostgreSQL
 @app.post("/data/save_postgres")
 async def save_to_postgres():
     """Persist parsed ARGO profiles (and level measurements) into PostgreSQL."""
@@ -401,13 +368,11 @@ async def save_to_postgres():
         raise HTTPException(status_code=500, detail="Database module not available")
 
     try:
-        # Rebuild current profile DataFrames from files
         profiles = ingestor.process_all_files()
         if not profiles:
             raise HTTPException(status_code=404, detail="No profile data available to save")
 
         if not embedding_index.profile_metadata or not embedding_index.profile_summaries:
-            # Ensure embeddings/metadata exist to align with profiles
             embedding_index.create_embeddings(profiles)
 
         saved_count = save_profiles_to_postgres(
@@ -423,7 +388,6 @@ async def save_to_postgres():
         logger.error(f"Saving to PostgreSQL failed: {e}")
         raise HTTPException(status_code=500, detail=f"Save to PostgreSQL failed: {str(e)}")
 
-# Export current vectors to Chroma persistent collection
 @app.post("/vectors/export_chroma")
 async def export_vectors_to_chroma():
     """Export embeddings, documents, and metadata to a persistent Chroma collection."""
@@ -437,7 +401,6 @@ async def export_vectors_to_chroma():
         logger.error(f"Chroma export failed: {e}")
         raise HTTPException(status_code=500, detail=f"Chroma export failed: {str(e)}")
 
-# Search endpoint for direct vector search
 @app.get("/search")
 async def search_profiles(
     q: str = Query(..., description="Search query"),
@@ -460,13 +423,11 @@ async def search_profiles(
         logger.error(f"Search failed: {e}")
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
-# Health check endpoint
 @app.get("/health")
 async def health_check():
     """Simple health check endpoint."""
     return {"status": "healthy", "timestamp": pd.Timestamp.now().isoformat()}
 
-# Error handlers
 @app.exception_handler(404)
 async def not_found_handler(request, exc):
     return JSONResponse(
@@ -476,7 +437,6 @@ async def not_found_handler(request, exc):
         ]}
     )
 
-# Development helper - run with uvicorn
 if __name__ == "__main__":
     import uvicorn
     
@@ -486,6 +446,6 @@ if __name__ == "__main__":
         "api:app",
         host=config.API_HOST,
         port=config.API_PORT,
-        reload=True,  # Enable auto-reload in development
+        reload=True,  
         log_level="info"
     )

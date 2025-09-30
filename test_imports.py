@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+
 """Test script to verify LangChain imports and OpenAI initialization."""
 
 import os

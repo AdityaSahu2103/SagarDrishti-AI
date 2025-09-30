@@ -5,7 +5,6 @@ from db import Base
 cfg = Config()
 cfg.validate_config()
 
-# Prefer POSTGRES_URL if defined, else build from parts
 if cfg.POSTGRES_URL:
     db_url = cfg.POSTGRES_URL
 else:

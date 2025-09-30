@@ -46,14 +46,12 @@ class ARGODataIngestor:
             html = response.read()
             soup = BeautifulSoup(html, 'html.parser')
             
-            # Find NetCDF file links
             links = soup.find_all('a')
             nc_links = [link.get('href') for link in links 
                        if link.get('href') and link.get('href').endswith('.nc')]
             
             logger.info(f"Found {len(nc_links)} NetCDF files")
             
-            # Download up to max_files
             for i, nc_file in enumerate(nc_links[:max_files]):
                 file_url = f"{url}/{nc_file}"
                 local_path = os.path.join(self.config.INDIAN_OCEAN_PATH, nc_file)
@@ -86,7 +84,6 @@ class ARGODataIngestor:
         try:
             ds = xr.open_dataset(file_path)
             
-            # Extract core variables (handle different naming conventions)
             pressure_vars = ['pres', 'PRES', 'pressure']
             temp_vars = ['temp', 'TEMP', 'temperature']
             sal_vars = ['psal', 'PSAL', 'salinity']
@@ -99,14 +96,11 @@ class ARGODataIngestor:
                 logger.warning(f"Missing required variables in {file_path}")
                 return None
             
-            # Extract metadata
             latitude = ds['latitude'].values[profile_idx] if 'latitude' in ds else np.nan
             longitude = ds['longitude'].values[profile_idx] if 'longitude' in ds else np.nan
             
-            # Handle time conversion
             time = self._extract_time(ds, profile_idx)
-            
-            # Create DataFrame
+     
             n_levels = len(pressure)
             df = pd.DataFrame({
                 'latitude': [latitude] * n_levels,
@@ -118,7 +112,6 @@ class ARGODataIngestor:
                 'file_source': [os.path.basename(file_path)] * n_levels
             })
             
-            # Remove rows with all NaN values
             df = df.dropna(subset=['pressure', 'temperature'])
             
             return df
@@ -143,13 +136,11 @@ class ARGODataIngestor:
             if time_var in ds:
                 time_val = ds[time_var].values[profile_idx]
                 
-                # Handle different time formats
                 if isinstance(time_val, cftime.Datetime360Day):
                     return pd.Timestamp(time_val.isoformat())
                 elif np.issubdtype(type(time_val), np.datetime64):
                     return pd.Timestamp(time_val)
                 elif isinstance(time_val, (int, float)):
-                    # Julian day number - convert to datetime
                     return pd.Timestamp('1950-01-01') + pd.Timedelta(days=float(time_val))
         
         # Default to current time if no time found
@@ -204,19 +195,15 @@ def create_profile_summary(df: pd.DataFrame) -> str:
            f"in month {month}, mean temp {temp_mean:.2f}°C, "
            f"mean salinity {sal_mean:.2f} PSU")
 
-# Example usage
 if __name__ == "__main__":
     # Initialize ingestor
     ingestor = ARGODataIngestor()
     
-    # Download some files (development/testing)
     downloaded = ingestor.download_netcdf_files(max_files=5)
     print(f"Downloaded {len(downloaded)} files")
     
-    # Process files
     profiles = ingestor.process_all_files()
     
-    # Create summaries
     for profile in profiles[:3]:  # Show first 3
         summary = create_profile_summary(profile)
         print(summary)
